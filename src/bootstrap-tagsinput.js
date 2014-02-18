@@ -34,12 +34,13 @@
     this.placeholderText = element.hasAttribute('placeholder') ? this.$element.attr('placeholder') : '';
     this.inputSize = Math.max(1, this.placeholderText.length);
 
-    this.$container = $('<div class="bootstrap-tagsinput"></div>');
-    this.$input = $('<input size="' + this.inputSize + '" type="text" placeholder="' + this.placeholderText + '"/>').appendTo(this.$container);
+    this.$container = $('<div class="bootstrap-tagsinput form-control"></div>');
+    this.$input = $('<input size="' + this.inputSize + '" type="text" placeholder="' + this.placeholderText + '""/>').appendTo(this.$container);
 
     this.$element.after(this.$container);
 
     this.build(options);
+    this.delete_key_down = false;
   }
 
   TagsInput.prototype = {
@@ -103,7 +104,8 @@
       self.itemsArray.push(item);
 
       // add a tag element
-      var $tag = $('<span class="tag ' + htmlEncode(tagClass) + '">' + htmlEncode(itemText) + '<span data-role="remove"></span></span>');
+      var $tag = $('<span class="tag ' + htmlEncode(tagClass) + '">' + htmlEncode(itemText) +
+        '<span class="actions"><span class="glyphicon glyphicon-pencil" data-role="edit"></span><span class="glyphicon glyphicon-remove-circle" data-role="remove"></span></span></span>');
       $tag.data('item', item);
       self.findInputWrapper().before($tag);
       $tag.after(' ');
@@ -187,17 +189,17 @@
             itemText = self.options.itemText(item),
             tagClass = self.options.tagClass(item);
 
-          // Update tag's class and inner text
-          $tag.attr('class', null);
-          $tag.addClass('tag ' + htmlEncode(tagClass));
-          $tag.contents().filter(function() {
-            return this.nodeType == 3;
-          })[0].nodeValue = htmlEncode(itemText);
+        // Update tag's class and inner text
+        $tag.attr('class', null);
+        $tag.addClass('tag ' + htmlEncode(tagClass));
+        $tag.contents().filter(function() {
+          return this.nodeType == 3;
+        })[0].nodeValue = htmlEncode(itemText);
 
-          if (self.isSelect) {
-            var option = $('option', self.$element).filter(function() { return $(this).data('item') === item; });
-            option.attr('value', itemValue);
-          }
+        if (self.isSelect) {
+          var option = $('option', self.$element).filter(function() { return $(this).data('item') === item; });
+          option.attr('value', itemValue);
+        }
       });
     },
 
@@ -210,13 +212,13 @@
 
     /**
      * Assembly value by retrieving the value of each item, and set it on the
-     * element. 
+     * element.
      */
     pushVal: function() {
       var self = this,
-          val = $.map(self.items(), function(item) {
-            return self.options.itemValue(item).toString();
-          });
+        val = $.map(self.items(), function(item) {
+          return self.options.itemValue(item).toString();
+        });
 
       self.$element.val(val, true).trigger('change');
     },
@@ -260,7 +262,7 @@
 
             this.map = {};
             var map = this.map,
-                data = typeahead.source(query);
+              data = typeahead.source(query);
 
             if ($.isFunction(data.success)) {
               // support for Angular promises
@@ -268,7 +270,7 @@
             } else {
               // support for functions and jquery promises
               $.when(data)
-               .then(processItems);
+                .then(processItems);
             }
           },
           updater: function (text) {
@@ -291,19 +293,42 @@
         self.$input.focus();
       }, self));
 
+      self.$container.on('keyup', 'input', $.proxy(function(event) {
+        switch (event.which) {
+          // BACKSPACE
+          case 8:
+            this.delete_key_down = false;
+          break;
+        }
+      }, self));
+
+      self.$container.on('blur', 'input', $.proxy(function(event) {
+        var $input = $(event.target);
+
+        if (self.options.freeInput) {
+          self.add($input.val());
+          $input.val('');
+          if($input.typeahead != undefined){
+            $input.typeahead('setQuery', '');
+          }
+        }
+      }));
+
       self.$container.on('keydown', 'input', $.proxy(function(event) {
         var $input = $(event.target),
-            $inputWrapper = self.findInputWrapper();
+          $inputWrapper = self.findInputWrapper();
 
         switch (event.which) {
           // BACKSPACE
           case 8:
             if (doGetCaretPosition($input[0]) === 0) {
               var prev = $inputWrapper.prev();
-              if (prev) {
+              if (prev && !this.delete_key_down) {
                 self.remove(prev.data('item'));
               }
             }
+            // prevent multidelet on long keypress
+            this.delete_key_down = true;
             break;
 
           // DELETE
@@ -334,7 +359,7 @@
               $input.focus();
             }
             break;
-         default:
+          default:
             // When key corresponds one of the confirmKeys, add current input
             // as a new tag
             if (self.options.freeInput && $.inArray(event.which, self.options.confirmKeys) >= 0) {
@@ -353,10 +378,21 @@
         self.remove($(event.target).closest('.tag').data('item'));
       }, self));
 
+      // Edit icon clicked
+      self.$container.on('click', '[data-role=edit]', $.proxy(function(event) {
+        var tag = $(event.target).closest('.tag');
+        var item = tag.data('item');
+        self.$container.find('input').val(item);
+        // Try to move the input before the previous tag
+        var $inputWrapper = self.findInputWrapper();
+        tag.before($inputWrapper);
+        self.remove(item);
+      }, self));
+
       // Only add existing value as tags when using strings as tags
       if (self.options.itemValue === defaultOptions.itemValue) {
         if (self.$element[0].tagName === 'INPUT') {
-            self.add(self.$element.val());
+          self.add(self.$element.val());
         } else {
           $('option', self.$element).each(function() {
             self.add($(this).attr('value'), true);
@@ -381,7 +417,7 @@
     },
 
     /**
-     * Sets focus on the tagsinput 
+     * Sets focus on the tagsinput
      */
     focus: function() {
       this.$input.focus();
@@ -400,7 +436,7 @@
      */
     findInputWrapper: function() {
       var elt = this.$input[0],
-          container = this.$container[0];
+        container = this.$container[0];
       while(elt && elt.parentNode !== container)
         elt = elt.parentNode;
 
@@ -446,9 +482,9 @@
   };
 
   $.fn.tagsinput.Constructor = TagsInput;
-  
+
   /**
-   * Most options support both a string or number as well as a function as 
+   * Most options support both a string or number as well as a function as
    * option value. This function makes sure that the option with the given
    * key in the given options is wrapped in a function
    */
