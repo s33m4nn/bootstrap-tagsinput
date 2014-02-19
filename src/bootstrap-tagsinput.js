@@ -304,11 +304,18 @@
 
       self.$container.on('blur', 'input', $.proxy(function(event) {
         var $input = $(event.target);
-
         if (self.options.freeInput) {
-          self.add($input.val());
-          $input.val('');
-          if($input.typeahead != undefined){
+          var clear = true;
+
+          if(typeof($input.typeahead) == "function"){
+            if ($('.tt-suggestion.tt-is-under-cursor').length) {
+              clear = false
+            }
+
+          }
+          if (clear) {
+            self.add($input.val());
+            $input.val('');
             $input.typeahead('setQuery', '');
           }
         }
