@@ -14,6 +14,7 @@
     freeInput: true,
     maxTags: undefined,
     confirmKeys: [13],
+    deleteTagByKeyboard: 'multiple',
     onTagExists: function(item, $tag) {
       $tag.hide().fadeIn();
     }
@@ -328,14 +329,20 @@
         switch (event.which) {
           // BACKSPACE
           case 8:
+            var deleteTagByKeyboard = this.options.deleteTagByKeyboard
+
             if (doGetCaretPosition($input[0]) === 0) {
               var prev = $inputWrapper.prev();
-              if (prev && !this.delete_key_down) {
+              if (prev && deleteTagByKeyboard != 'disabled'&&
+                  !(this.delete_key_down && deleteTagByKeyboard == 'single')){
                 self.remove(prev.data('item'));
               }
             }
             // prevent multidelet on long keypress
-            this.delete_key_down = true;
+            if (deleteTagByKeyboard == 'single') {
+                this.delete_key_down = true;
+            }
+
             break;
 
           // DELETE
